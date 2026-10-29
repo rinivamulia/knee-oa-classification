@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Klasifikasi Osteoarthritis Lutut - Arsitektur ResNet50+MobileNetV3Small</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    /* [Style CSS-mu tetap, tidak diubah sama sekali] */
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: 'Poppins', sans-serif;
+      background: #E3F2FA; overflow: hidden;
+      height: 100vh; display: flex;
+      flex-direction: column; align-items: center;
+    }
+    .wave-container { position: fixed; top: 0; left: 0; width: 100%; height: 180px; z-index: 1; }
+    .wave-container svg { width: 100%; height: 100%; display: block; }
+    .title { margin-top: 140px; font-size: 26px; font-weight: 600; color: #183B66; text-align: center; z-index: 2; }
+    .main-box {
+      position: relative; background: white; margin-top: 15px;
+      width: 500px; max-width: 90vw; border-radius: 15px;
+      padding: 30px; box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+      display: flex; gap: 25px; z-index: 2;
+    }
+    .left-panel { flex: 1; display: flex; flex-direction: column; align-items: center; }
+    .image-box {
+      width: 200px; height: 200px; border: 2px dashed #75D3E7;
+      border-radius: 15px; background: #F0F9FF;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 10px; position: relative;
+    }
+    .image-box img { max-width: 100%; max-height: 100%; object-fit: contain; }
+    .file-input {
+      display: inline-block; padding: 8px 16px;
+      background-color: #75D3E7; color: white;
+      border-radius: 10px; cursor: pointer;
+      font-weight: 600; user-select: none;
+      transition: background-color 0.3s; border: none; font-size: 13px;
+    }
+    .file-input:hover { background-color: #5cbcd0; }
+    .file-input input[type="file"] { display: none; }
+    .right-panel { flex: 1; display: flex; flex-direction: column; gap: 16px; }
+    .input-group input[type="text"], .input-group input[type="date"] {
+      width: 100%; padding: 8px 12px; border-radius: 10px;
+      border: 1.5px solid #ccc; font-size: 15px;
+      outline: none; transition: border-color 0.3s;
+    }
+    .input-group input[type="text"]:focus, .input-group input[type="date"]:focus {
+      border-color: #75D3E7;
+    }
+    .input-group { display: flex; flex-direction: column; gap: 10px; }
+    .result-container {
+      margin-top: 5px; border-radius: 12px; padding: 15px;
+      min-height: 90px; display: flex; flex-direction: column;
+      justify-content: center; font-weight: 700; font-size: 16px;
+      color: #1b2e4a; transition: background-color 0.5s, color 0.5s;
+    }
+    .result-label { margin-bottom: 6px; font-size: 17px; font-weight: 700; }
+    .result-default { background-color: #c3e0ff; color: #154e8c; }
+    .result-grade0 { background-color: #d4f4dc; color: #2b662e; }
+    .result-grade1 { background-color: #fff9c4; color: #a28c1d; }
+    .result-grade2 { background-color: #fff176; color: #826700; }
+    .result-grade3 { background-color: #ffcc80; color: #974b00; }
+    .result-grade4 { background-color: #f28b82; color: #650000; }
+    .button-panel {
+      position: fixed; bottom: 30px; right: 30px;
+      background-color: #75D3E7; padding: 8px 16px;
+      border-radius: 30px; display: flex; gap: 10px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.12); z-index: 3;
+    }
+    .button-panel button {
+      background: white; color: #183B66; border: none;
+      padding: 6px 14px; font-weight: 700;
+      border-radius: 20px; cursor: pointer;
+      font-size: 13px; transition: background-color 0.3s;
+    }
+    .button-panel button:hover { background-color: #c4e7ff; }
+    .logo { position: fixed; top: 20px; right: 40px; width: 90px; height: auto; z-index: 4; }
+    .side-graphics { position: fixed; opacity: 0.3; z-index: 0; pointer-events: none; }
+    .left-graphic { top: 150px; left: 20px; width: 200px; height: auto; }
+    .right-graphic { bottom: 80px; right: 60px; width: 330px; height: auto; }
+    .credit { position: fixed; bottom: 10px; right: 30px; font-size: 14px; color: #527a9f; z-index: 9999; }
+
+    @media (max-width: 760px) {
+      .main-box { flex-direction: column; width: 90vw; padding: 20px; }
+      .left-panel, .right-panel { flex: none; width: 100%; }
+      .image-box { width: 100%; height: auto; aspect-ratio: 1/1; }
+      .button-panel { position: static; margin-top: 25px; justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="wave-container">
+    <svg viewBox="0 0 1440 180" preserveAspectRatio="none">
+      <path fill="#C9E1F0" d="M0,80 C360,150 1080,10 1440,80 L1440,0 L0,0 Z"></path>
+      <path fill="#75D3E7" d="M0,70 C360,140 1080,0 1440,70 L1440,0 L0,0 Z"></path>
+    </svg>
+  </div>
+
+  <img src="{{ url_for('static', filename='cnn_left.png') }}" alt="CNN Left" class="side-graphics left-graphic" />
+  <img src="{{ url_for('static', filename='cnn_right.png') }}" alt="CNN Right" class="side-graphics right-graphic" />
+  <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="logo" />
+  <h1 class="title">Klasifikasi Osteoarthritis Lutut - Arsitektur MobileNetV2</h1>
+  
+  {% if error %}
+  <div style="color: red; font-weight: bold;">{{ error }}</div>
+  {% endif %}
+
+  {% if success %}
+  <div style="color: green; font-weight: bold;">{{ success }}</div>
+  {% endif %}
+
+  <div class="main-box">
+    <div class="left-panel">
+      <div class="image-box" id="imageBox">
+        <span id="placeholderText" style="color:#75D3E7; font-weight:600;">Pilih gambar OA</span>
+      </div>
+      <label class="file-input">Choose Image OA
+        <input type="file" id="inputImage" accept="image/*" />
+      </label>
+    </div>
+    <div class="right-panel">
+      <div class="input-group">
+        <input type="text" id="namaPasien" placeholder="Nama Pasien" />
+        <input type="date" id="tglPemeriksaan" placeholder="Tanggal Pemeriksaan" />
+        <input type="text" id="namaDokter" placeholder="Nama Dokter" />
+      </div>
+      <div class="result-label">Hasil Klasifikasi:</div>
+      <div class="result-container result-default" id="resultBox">Lihat Hasil Klasifikasi</div>
+    </div>
+  </div>
+
+  <div class="button-panel">
+    <button id="checkBtn">CHECK</button>
+    <button id="resetBtn">RESET</button>
+    <button id="saveBtn">SAVE</button>
+  </div>
+  <div class="credit">Created by Rini Vamulia | 1817041055</div>
+
+  <script>
+    const fileInput = document.getElementById('inputImage');
+    const imageBox = document.getElementById('imageBox');
+    const resultBox = document.getElementById('resultBox');
+    const checkBtn = document.getElementById('checkBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const saveBtn = document.getElementById('saveBtn');
+
+    // Preview gambar saat dipilih
+    fileInput.addEventListener('change', function () {
+      const file = this.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          const img = document.createElement('img');
+          img.src = e.target.result;
+          imageBox.innerHTML = '';
+          imageBox.appendChild(img);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        imageBox.innerHTML = '<span id="placeholderText" style="color:#75D3E7; font-weight:600;">Pilih gambar OA</span>';
+      }
+    });
+
+    // Fungsi untuk menampilkan hasil klasifikasi
+    function tampilkanHasil(grade, probabilities) {
+      window.latestGrade = grade;
+      window.latestProbabilities = probabilities;
+      resultBox.className = 'result-container';
+      let probText = '';
+      if (probabilities && probabilities.length === 5) {
+        const probPercent = (probabilities[grade] * 100).toFixed(2);
+        probText = ` (Confidence: ${probPercent}%)`;
+      }
+
+      switch (grade) {
+        case 0:
+          resultBox.classList.add('result-grade0');
+          resultBox.textContent = "Kondisi normal dan sehat (GRADE 0)" + probText;
+          break;
+        case 1:
+          resultBox.classList.add('result-grade1');
+          resultBox.textContent = "Adanya tanda awal, perlu perhatian (GRADE 1)" + probText;
+          break;
+        case 2:
+          resultBox.classList.add('result-grade2');
+          resultBox.textContent = "Kondisi memerlukan penanganan lebih lanjut (GRADE 2)" + probText;
+          break;
+        case 3:
+          resultBox.classList.add('result-grade3');
+          resultBox.textContent = "Kondisi yang lebih serius, tindakan medis sangat dianjurkan (GRADE 3)" + probText;
+          break;
+        case 4:
+          resultBox.classList.add('result-grade4');
+          resultBox.textContent = "Kondisi parah, tindakan medis segera sangat penting (GRADE 4)" + probText;
+          break;
+        default:
+          resultBox.classList.add('result-default');
+          resultBox.textContent = "Lihat Hasil Klasifikasi";
+          break;
+      }
+    }
+
+    // Tombol CHECK untuk mengirim gambar + data pasien ke backend dengan JSON
+    checkBtn.addEventListener('click', async function () {
+    const file = fileInput.files[0];
+    const nama = document.getElementById('namaPasien').value;
+    const tgl = document.getElementById('tglPemeriksaan').value;
+    const dokter = document.getElementById('namaDokter').value;
+    
+    if (!file) {
+        alert("Silakan pilih gambar terlebih dahulu.");
+        return;
+    }
+    if (!nama || !tgl || !dokter) {
+        alert("Harap lengkapi data nama, tanggal pemeriksaan, dan nama dokter.");
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('image', file);
+    formData.append('nama', nama);
+    formData.append('tgl_pemeriksaan', tgl);
+    formData.append('dokter', dokter);
+
+    resultBox.textContent = "Memproses...";
+    resultBox.className = 'result-container result-default';
+
+    try {
+        const response = await fetch('/predict-gui2', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Gagal memproses gambar! ${errorText}`);
+        }
+
+        const data = await response.json();
+
+        window.latestFilename = data.filename;
+        
+        if (data.grade !== undefined && data.probabilities !== undefined) {
+            tampilkanHasil(data.grade, data.probabilities);
+        } else {
+            resultBox.textContent = "Data tidak valid.";
+        }
+
+    } catch (error) {
+        resultBox.className = 'result-container result-default';
+        resultBox.textContent = `Terjadi kesalahan: ${error.message}`;
+    }
+});
+   
+
+    // Tombol RESET untuk menghapus hasil dan input
+    resetBtn.addEventListener('click', () => {
+      resultBox.className = 'result-container result-default';
+      resultBox.textContent = "Lihat Hasil Klasifikasi";
+      fileInput.value = '';
+      imageBox.innerHTML = '<span id="placeholderText" style="color:#75D3E7; font-weight:600;">Pilih gambar OA</span>';
+      document.getElementById('namaPasien').value = '';
+      document.getElementById('tglPemeriksaan').value = '';
+      document.getElementById('namaDokter').value = '';
+      window.latestGrade = undefined;
+      window.latestProbabilities = undefined;
+    });
+
+    // Tombol SAVE untuk mengunduh data pasien dan hasil klasifikasi ke CSV
+    saveBtn.addEventListener('click', () => {
+      const nama = document.getElementById('namaPasien').value.trim();
+      const tgl = document.getElementById('tglPemeriksaan').value.trim();
+      const dokter = document.getElementById('namaDokter').value.trim();
+      const grade = typeof window.latestGrade !== 'undefined' ? window.latestGrade : '';
+      const probs = window.latestProbabilities ? window.latestProbabilities.map(p => p.toFixed(4)).join(';') : '';
+      const filename = window.latestFilename;
+
+      if (!nama || !tgl || !dokter || grade === '' || !filename) {
+        alert("Harap lengkapi semua data dan lakukan CHECK terlebih dahulu.");
+        return;
+      }
+
+      // Keterangan Grade
+      let keterangan = '';
+      switch (grade) {
+        case 0:
+          keterangan = "Kondisi normal dan sehat (GRADE 0)";
+          break;
+        case 1:
+          keterangan = "Adanya tanda awal, perlu perhatian (GRADE 1)";
+          break;
+        case 2:
+          keterangan = "Kondisi memerlukan penanganan lebih lanjut (GRADE 2)";
+          break;
+        case 3:
+          keterangan = "Kondisi yang lebih serius, tindakan medis sangat dianjurkan (GRADE 3)";
+          break;
+        case 4:
+          keterangan = "Kondisi parah, tindakan medis segera sangat penting (GRADE 4)";
+          break;
+        default:
+          keterangan = "Tidak diketahui";
+      }
+
+      // Buat isi CSV
+      const csv = `Nama Pasien,Tanggal Pemeriksaan,Nama Dokter,Grade,Keterangan,Probabilitas,File Gambar\n` +
+                  `"${nama}","${tgl}","${dokter}","GRADE ${grade}","${keterangan}","${probs}","${filename}"`;
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", "data_pasien_OA.csv");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    });
+  </script>
+</body>
+</html>
